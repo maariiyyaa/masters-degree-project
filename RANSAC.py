@@ -7,7 +7,7 @@ class RANSAC:
         np.seterr(invalid='ignore')
         self.iters = iters
         self.eps = eps
-        self.intercept = None
+        self.cross_point = None
         self.inliers_mask = None
         
         
@@ -16,7 +16,7 @@ class RANSAC:
         Inequality under the sum in vanishing point formula
         """
         return abs(np.arccos(
-            self.intercept.T.dot(np.cross(l1, x)/np.linalg.norm(np.cross(l1, x)))
+            self.cross_point.T.dot(np.cross(l1, x)/np.linalg.norm(np.cross(l1, x)))
             )) < self.eps
     
     
@@ -24,7 +24,7 @@ class RANSAC:
         """
         Final line filterinf based on found vanishing point
         """
-        return abs(np.arccos(self.intercept.T.dot(x/np.linalg.norm(x)))) < self.eps
+        return abs(np.arccos(self.cross_point.T.dot(x/np.linalg.norm(x)))) < self.eps
     
     
     def _get_best_vp(self, lines):
@@ -35,11 +35,11 @@ class RANSAC:
         _num_lines = np.zeros((self.iters))
         for i in range(self.iters):
             _l1, _l2 = lines[np.random.choice(np.arange(len(lines)), size=2, replace=False), :]
-            self.intercept = np.cross(_l1,_l2)/np.linalg.norm(np.cross(_l1,_l2))
-            _cross_points[i] = self.intercept
+            self.cross_point = np.cross(_l1,_l2)/np.linalg.norm(np.cross(_l1,_l2))
+            _cross_points[i] = self.cross_point
             _num_lines[i] = len(list(filter(lambda x: self._vanishing_point_filter(x, _l1), lines)))
 
-        self.intercept = _cross_points[_num_lines.argmax()] #np.ndarray(shape=(1, 3))
+        self.cross_point = _cross_points[_num_lines.argmax()][0] #np.ndarray(shape=(1, 3))
         
     
     def get_direction_lines(self, lines):
