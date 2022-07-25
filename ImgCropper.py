@@ -11,18 +11,26 @@ class ImgCropper:
         self.edges = None
         self.sheet_corners = []
         self.cropped_shape = None
+        
+        
+    @staticmethod   
+    def _imge_enhancement(img):
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        dilated = cv2.morphologyEx(
+            gray, cv2.MORPH_DILATE,
+            cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (20,20)))
+        diff2 = 255 - cv2.subtract(cv2.medianBlur(dilated, 5), gray)
+        normed = cv2.normalize(diff2,None, 10, 255, cv2.NORM_MINMAX )
+        bw = cv2.threshold(normed, 210, 255, cv2.THRESH_BINARY)[1]
+        return bw
 
         
-    def _find_edges(self):
-        gray = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
-        low_sigma = cv2.GaussianBlur(gray, (1,1), 0) #how to define a proper kernel programatically 
-        high_sigma = cv2.GaussianBlur(gray, (5,5), 0) #how to define a proper kernel programatically
-        # Calculate the DoG by subtracting
-        dog = low_sigma - high_sigma
-        #find image edges
-        self.edges = cv2.Canny(gray, 60, 80, apertureSize=3, L2gradient=True) #how to define proper thresholds programatically
-
-        
+    def _find_edges(self, do_enhancement):
+        if do_enhancement:
+            self.image = ImgCropper._imge_enhancement(self.image)
+        self.edges = cv2.Canny(self.image, 100, 120, apertureSize=3, L2gradient=True)
+      
+       
     @staticmethod
     def _find_lines(edges):
         max_axis = max(edges.shape)
@@ -82,9 +90,9 @@ class ImgCropper:
         return x_length_norm, y_length_norm
 
 
-    def crop_image(self, image, verbose=False):
+    def crop_image(self, image, do_enhancement=True, verbose=False):
         self.image = image
-        self._find_edges()
+        self._find_edges(do_enhancement)
         horizontal_lines, vertical_lines = ImgCropper._find_lines(self.edges)
         #find sheet borders
         left = vertical_lines[np.array(vertical_lines)[:,0, 0].argmin()]
