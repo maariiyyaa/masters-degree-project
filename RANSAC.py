@@ -39,7 +39,7 @@ class RANSAC:
             _cross_points[i] = self.cross_point
             _num_lines[i] = len(list(filter(lambda x: self._vanishing_point_filter(x, _l1), lines)))
 
-        self.cross_point = _cross_points[_num_lines.argmax()][0] #np.ndarray(shape=(1, 3))
+        self.cross_point = _cross_points[_num_lines.argmax()] #np.ndarray(shape=(1, 3))
         
     
     def get_direction_lines(self, lines):
