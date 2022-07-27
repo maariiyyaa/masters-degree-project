@@ -28,8 +28,7 @@ class RANSAC:
         :param cross_point: point of intersection of l1 and another line
         :return: array of True or False
         """
-        point = cross(l1, x)
-        return [abs(arccos(cross_point.T.dot(point/norm(point)))) < self.eps for x in lines]
+        return [abs(arccos(cross_point.T.dot(cross(l1, x)/norm(cross(l1, x))))) < self.eps for x in lines]
 
     def _get_inliers(self, lines):
         """
