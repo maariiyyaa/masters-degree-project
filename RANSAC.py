@@ -17,22 +17,20 @@ def get_inliers(lines, iters=500, epsilon=0.01):
     :param lines: np.ndarray(shape=(n, 3)),
                   lines in projective space defined as np.cross((x1, y1, 1), (x2, y2, 1))
     :param iters: int, default=500
-                  amount of alhorithm iterations 
+                  number of iterations of the algorithm 
     :param iters: float, default=0.01
-                  distance treshold
+                  distance threshold
     :return: subset of lines which have one direction, inlier mask array
     """
     inliers_mask = array([False], dtype=bool)
     for _ in range(iters):
         l1, l2 = lines[choice(arange(len(lines)), size=2, replace=False)]
-        intersect = cross(l1, l2)
-        cross_point_temp = intersect / norm(intersect)
-        cross_point_temp_norm = cross_point_temp / norm(cross_point_temp)
-        points = cross(l1, lines)
-        points_norm = points / norm(points, axis=1)[:,None]
+        vanishing_temp = cross(l1, l2)
+        vanishing_temp_norm = vanishing_temp/ norm(vanishing_temp)
+        cross_points = cross(l1, lines)
+        cross_points_norm = cross_points / norm(cross_points, axis=1)[:,None]
         #Inequality under the sum in vanishing point formula
-        mask_temp = abs(arccos(inner(cross_point_temp_norm, points_norm))) < epsilon 
+        mask_temp = abs(arccos(inner(vanishing_temp_norm, cross_points_norm))) < epsilon 
         if len(mask_temp[mask_temp]) > len(inliers_mask[inliers_mask]):
             inliers_mask = mask_temp
-            cross_point = cross_point_temp
     return lines[inliers_mask], inliers_mask
