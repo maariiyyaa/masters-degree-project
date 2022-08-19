@@ -21,12 +21,11 @@ class ImgCropper:
     def __init__(self, warning=False):
         if not warning:
             seterr(invalid='ignore')
-        self.edges = None
         self.sheet_corners = []
         self.cropped_shape = None
         
-
-    def _find_edges(self, image,):
+    @classmethod
+    def find_edges(cls, image,):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         dilated = cv2.morphologyEx(
             gray, cv2.MORPH_DILATE,
@@ -35,14 +34,14 @@ class ImgCropper:
         diff2 = 255 - cv2.subtract(cv2.medianBlur(dilated, 5), gray)
         normed = cv2.normalize(diff2, None, 10, 255, cv2.NORM_MINMAX)
         bw = cv2.threshold(normed, 210, 255, cv2.THRESH_BINARY)[1]
-        self.edges = cv2.Canny(bw, 100, 120, apertureSize=3, L2gradient=True)
+        return cv2.Canny(bw, 100, 120, apertureSize=3, L2gradient=True)
       
        
     @staticmethod
-    def _find_lines(edges):
+    def _find_lines(edges, hl_threshold):
         max_axis = max(edges.shape)
         min_axis = min(edges.shape)
-        lines = cv2.HoughLines(edges, 1, pi/360, int(min_axis/5),) 
+        lines = cv2.HoughLines(edges, 1, pi/360, hl_threshold,) 
         lines_coefs = empty((len(lines), 3))
         for i, line in enumerate(lines):
             for rho, theta in line:
@@ -58,13 +57,22 @@ class ImgCropper:
         return lines_coefs
 
 
-    def _find_corner_points(self, lines):
-        l1 = lines[(lines[:, 1]/lines[:, 2]).argmin()] #y-intercept - top
-        l2 = lines[(lines[:, 0]/lines[:, 2]).argmin()] #x-intercept - left
-        l3 = lines[(lines[:, 0]/lines[:, 2]).argmax()] #x-intercept - bottom
-        l4 = lines[(lines[:, 1]/lines[:, 2]).argmax()] #y-intercept - right
+    def _find_corner_points(self, lines1, vp1, lines2):
+        if vp1[2] != 0:
+            vp1 = vp1/vp1[2]
+        if abs(vp1[0]/vp1[1]) < 1:
+            vertical = lines1
+            horizontal = lines2
+        else:
+            vertical = lines2
+            horizontal = lines1
+        l1 = horizontal[(-horizontal[:, 2]/horizontal[:, 1]).argmin()] #y-intercept - top
+        l2 = vertical[(-vertical[:, 2]/vertical[:, 0]).argmin()] #x-intercept - left
+        l3 = horizontal[(-horizontal[:, 2]/horizontal[:, 1]).argmax()] #x-intercept - bottom
+        l4 = vertical[(-vertical[:, 2]/vertical[:, 0]).argmax()] #y-intercept - right
         corner_points = cross([l1, l2, l3, l4], [l2, l3, l4, l1])
         self.sheet_corners = (corner_points / corner_points[:, 2][:, None])[:, :2]
+        print(self.sheet_corners)
 
     
     @staticmethod
@@ -79,14 +87,13 @@ class ImgCropper:
         return int(x_length), int(y_length)
 
 
-    def crop_image(self, image, resize=True):
-        self._find_edges(image,)
-        lines = ImgCropper._find_lines(self.edges)
+    def crop_image(self, image, hl_threshold=500, resize=True):
+        edges = self.find_edges(image,)
+        lines = ImgCropper._find_lines(edges, hl_threshold)
         #find sheet borders
-        line_group1, mask = get_inliers(lines, iters=800, epsilon=0.05)
-        line_group2, _ = get_inliers(lines[~mask], iters=800, epsilon=0.05)
-        selected_lines = concatenate((line_group1, line_group2), axis=0)
-        self._find_corner_points(selected_lines)
+        line_group1, mask, vp1 = get_inliers(lines, iters=2000, epsilon=0.05)
+        line_group2, _, _ = get_inliers(lines[~mask], iters=2000, epsilon=0.05)
+        self._find_corner_points(line_group1, vp1, line_group2)
         #get shape of cropped image
         if resize:
             self.cropped_shape = ImgCropper._get_ratio(self.sheet_corners)
