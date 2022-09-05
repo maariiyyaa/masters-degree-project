@@ -12,9 +12,10 @@ from numpy.random import choice
 from numpy.linalg import norm
         
     
-def get_inliers(lines, iters=500, epsilon=0.01):
+def get_codirectional_lines(lines, iters=500, epsilon=0.01):
     """
-    Apply formula to get vanishing point
+    Applying a RANSAC method to find the best vanish point and
+    the intersecting in it lines.
     
     :param lines: np.ndarray(shape=(n, 3)),
                   lines in projective space defined as np.cross((x1, y1, 1), (x2, y2, 1))
@@ -22,36 +23,37 @@ def get_inliers(lines, iters=500, epsilon=0.01):
                   number of iterations of the algorithm 
     :param epsilon: float, default=0.01
                   distance threshold
-    :return: subset of lines which have one direction, inlier mask array
+    :return: subset of lines which have one direction, inlier mask array, vanish point
     """
+    
     inliers_mask = array([False], dtype=bool)
     for _ in range(iters):
         l1, l2 = lines[choice(arange(len(lines)), size=2, replace=False)]
-        vanishing_temp = cross(l1, l2)
-        vanishing_temp_norm = vanishing_temp/ norm(vanishing_temp)
+        vanish_temp = cross(l1, l2)
+        vanish_temp_norm = vanish_temp / norm(vanish_temp)
         cross_points = cross(l1, lines)
         cross_points_norm = cross_points / norm(cross_points, axis=1)[:,None]
         #Inequality under the sum in vanishing point formula
-        mask_temp = abs(arccos(inner(vanishing_temp_norm, cross_points_norm))) < epsilon 
+        mask_temp = abs(arccos(inner(vanish_temp_norm, cross_points_norm))) < epsilon 
         if len(mask_temp[mask_temp]) > len(inliers_mask[inliers_mask]):
             inliers_mask = mask_temp
-            vanishing_point = vanishing_temp
-    return lines[inliers_mask], inliers_mask, vanishing_point
+            vanish_point = vanish_temp
+    return lines[inliers_mask], inliers_mask, vanish_point
 
 
 
 
 def get_best_dist(rhos, axis_lenght, iters=1000, epsilon=5):
     """
-    Get approximate distance between one-directional lines
+    Get approximate distance between co-directional lines
     
     :param rhos: np.ndarray(shape=(n, )),
-        list of rhos of one-directional lines
+        list of rhos of co-directional lines
     :param axis_lenght: int 
-        the length of axis across which one-directional lines are passed
+        the length of axis across which co-directional lines are passed
     :param iters: int, default=1000
                   number of iterations of the algorithm 
-    :param epsilon: float, default=3
+    :param epsilon: float, default=5
                   allowed distance deviation
     """
     best_count = 0
