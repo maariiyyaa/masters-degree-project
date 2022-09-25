@@ -6,7 +6,7 @@ from numpy import (
     arccos,
     inner,
     sort,
-    absolute as abs
+    absolute as npabs
 )
 from numpy.random import choice
 from numpy.linalg import norm
@@ -14,7 +14,7 @@ from numpy.linalg import norm
     
 def get_codirectional_lines(lines, iters=500, epsilon=0.01):
     """
-    Applying a RANSAC method to find the best vanish point and
+    Applying RANSAC method to find the best vanishing point and
     the intersecting in it lines.
     
     :param lines: np.ndarray(shape=(n, 3)),
@@ -28,19 +28,22 @@ def get_codirectional_lines(lines, iters=500, epsilon=0.01):
     
     inliers_mask = array([False], dtype=bool)
     for _ in range(iters):
-        l1, l2 = lines[choice(arange(len(lines)), size=2, replace=False)]
+        #get 2 random lines
+        line_choice = choice(arange(len(lines)), size=2, replace=True)
+        l1, l2 = lines[line_choice]
+        #find normilized cross points in the 2-sphere in 3-space 
         vanish_temp = cross(l1, l2)
-        vanish_temp_norm = vanish_temp / norm(vanish_temp)
         cross_points = cross(l1, lines)
-        cross_points_norm = cross_points / norm(cross_points, axis=1)[:,None]
-        #Inequality under the sum in vanishing point formula
-        mask_temp = abs(arccos(inner(vanish_temp_norm, cross_points_norm))) < epsilon 
+        vanish_temp_norm = npabs(vanish_temp / norm(vanish_temp))
+        cross_points_norm = npabs(cross_points / norm(cross_points, axis=1)[:,None])
+        #get distance between vanish_temp_norm and each of cross_points_norm and create a filter by `epsilon`
+        mask_temp = arccos(inner(vanish_temp_norm, cross_points_norm)) < epsilon 
         if len(mask_temp[mask_temp]) > len(inliers_mask[inliers_mask]):
             inliers_mask = mask_temp
             vanish_point = vanish_temp
-    return lines[inliers_mask], inliers_mask, vanish_point
-
-
+            l=l1
+            print('basic lines: s', line_choice)
+    return lines[inliers_mask], inliers_mask, vanish_point, l
 
 
 def get_best_dist(rhos, axis_lenght, iters=1000, epsilon=5):
