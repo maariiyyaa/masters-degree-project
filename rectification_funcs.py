@@ -118,3 +118,4 @@ def find_corner_points(lines1, lines2, vp1, vp2):
     l4 = vertical[(-vertical[:, 2]/vertical[:, 0]).argmax()] # y-intercept - right
     corner_points = cross([l1, l2, l3, l4], [l2, l3, l4, l1])
     return corner_points / corner_points[:, 2][:, None]
+
