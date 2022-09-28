@@ -1,0 +1,7 @@
+Run following lines to test functionality:
+
+python main.py images/nb.jpg 210 700 90
+
+or
+
+python main.py images/obl3.jpg 235 700 60
