@@ -3,8 +3,8 @@ import sys
 import cv2
 import numpy as np
 
-from rectification_funcs import *
-from RANSAC import get_codirectional_lines
+from processing.rectification_funcs import *
+from processing.RANSAC import get_codirectional_lines
 
 
 def find_lines(image, threshold, dots_per_line):
