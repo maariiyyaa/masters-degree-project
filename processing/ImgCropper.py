@@ -6,13 +6,11 @@ from numpy import(
     cross,
     cos,
     sin,
-    concatenate,
     float32
 )
 from numpy.linalg import norm
-import matplotlib.pyplot as plt
 
-from RANSAC import get_inliers
+from processing.RANSAC import get_codirectional_lines
 
 
 
@@ -24,8 +22,8 @@ class ImgCropper:
         self.sheet_corners = []
         self.cropped_shape = None
         
-    @classmethod
-    def find_edges(cls, image,):
+    @staticmethod
+    def get_binary_img(image,):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         dilated = cv2.morphologyEx(
             gray, cv2.MORPH_DILATE,
@@ -33,8 +31,8 @@ class ImgCropper:
         )
         diff2 = 255 - cv2.subtract(cv2.medianBlur(dilated, 5), gray)
         normed = cv2.normalize(diff2, None, 10, 255, cv2.NORM_MINMAX)
-        bw = cv2.threshold(normed, 210, 255, cv2.THRESH_BINARY)[1]
-        return cv2.Canny(bw, 100, 120, apertureSize=3, L2gradient=True)
+        return cv2.threshold(normed, 210, 255, cv2.THRESH_BINARY)[1]
+         
       
        
     @staticmethod
@@ -72,8 +70,6 @@ class ImgCropper:
         l4 = vertical[(-vertical[:, 2]/vertical[:, 0]).argmax()] #y-intercept - right
         corner_points = cross([l1, l2, l3, l4], [l2, l3, l4, l1])
         self.sheet_corners = (corner_points / corner_points[:, 2][:, None])[:, :2]
-        print(self.sheet_corners)
-
     
     @staticmethod
     def _get_ratio(sheet_corners):
@@ -88,11 +84,14 @@ class ImgCropper:
 
 
     def crop_image(self, image, hl_threshold=500, resize=True):
-        edges = self.find_edges(image,)
+        edges = cv2.Canny(
+            ImgCropper.get_binary_img(image), 
+            100, 120, apertureSize=3, L2gradient=True
+        )
         lines = ImgCropper._find_lines(edges, hl_threshold)
         #find sheet borders
-        line_group1, mask, vp1 = get_inliers(lines, iters=2000, epsilon=0.05)
-        line_group2, _, _ = get_inliers(lines[~mask], iters=2000, epsilon=0.05)
+        line_group1, mask, vp1 = get_codirectional_lines(lines, iters=2000, epsilon=0.05)
+        line_group2, _, _ = get_codirectional_lines(lines[~mask], iters=2000, epsilon=0.05)
         self._find_corner_points(line_group1, vp1, line_group2)
         #get shape of cropped image
         if resize:
