@@ -27,7 +27,7 @@ def find_axis_points(v_inf1, v_inf2):
                   [v_inf1[2], -v_inf1[2], v_inf2[2], -v_inf2[2]]]) 
     
     # calculate angles between Ox and each point
-    thetas = arctan2(dirs[0], dirs[1])
+    thetas = arctan2(dirs[1], dirs[0])
     
     # get idx of a point that is the most closest to +Ox axis
     horizont_vp_idx = argmin(npabs(thetas)) 
@@ -55,7 +55,7 @@ def find_horizontal_vp(v_inf1, v_inf2):
                   [v_inf1[2], -v_inf1[2], v_inf2[2], -v_inf2[2]]]) 
     
     # calculate angles between Ox and each point
-    thetas = arctan2(dirs[0], dirs[1])
+    thetas = arctan2(dirs[1], dirs[0])
     # get idx of a point that is the most closest to +Ox axis
     horizont_vp_idx = argmin(npabs(thetas)) 
     # get idx of a point, the most closest to +Oy axis
