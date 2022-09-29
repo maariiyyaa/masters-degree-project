@@ -105,13 +105,11 @@ def transform_points(points, homography):
 def find_corner_points(lines1, lines2, vp1, vp2):
     
     if find_horizontal_vp(vp1, vp2) == 0:
-        # order must be changed
-        horizontal = lines2
-        vertical = lines1
-    else:
-        # order must be changed
         horizontal = lines1
         vertical = lines2
+    else:
+        horizontal = lines2
+        vertical = lines1
     l1 = horizontal[(-horizontal[:, 2]/horizontal[:, 1]).argmin()] # y-intercept - top
     l2 = vertical[(-vertical[:, 2]/vertical[:, 0]).argmin()] # x-intercept - left
     l3 = horizontal[(-horizontal[:, 2]/horizontal[:, 1]).argmax()] # x-intercept - bottom
