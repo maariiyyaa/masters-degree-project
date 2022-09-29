@@ -29,14 +29,14 @@ def get_codirectional_lines(lines, iters=500, epsilon=0.01):
     inliers_mask = array([False], dtype=bool)
     for _ in range(iters):
         #get 2 random lines
-        l1, l2 = lines[choice(arange(len(lines)), size=2, replace=True)]
+        l1, l2 = lines[choice(arange(len(lines)), size=2, replace=False)]
         #find normilized cross points in the 2-sphere in 3-space 
         vanish_temp = cross(l1, l2)
         cross_points = cross(l1, lines)
         vanish_temp_norm = vanish_temp / norm(vanish_temp)
         cross_points_norm = cross_points / norm(cross_points, axis=1)[:,None]
         #get distance between vanish_temp_norm and each of cross_points_norm and create a filter by `epsilon`
-        mask_temp = npabs(arccos(inner(vanish_temp_norm, cross_points_norm))) < epsilon 
+        mask_temp = arccos(npabs(inner(vanish_temp_norm, cross_points_norm))) < epsilon 
         if len(mask_temp[mask_temp]) > len(inliers_mask[inliers_mask]):
             inliers_mask = mask_temp
             vanish_point = vanish_temp
