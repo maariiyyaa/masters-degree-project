@@ -8,17 +8,18 @@ from processing.RANSAC import get_codirectional_lines
 
 
 def find_lines(image, threshold, dots_per_line):
+
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (10,10))
     dilated = cv2.morphologyEx(gray, cv2.MORPH_DILATE, kernel)
     median = cv2.medianBlur(dilated, 5)
     diff2 = 255 - cv2.subtract(median, gray)
-    normed = cv2.normalize(diff2,None, 10, 255, cv2.NORM_MINMAX )
+    normed = cv2.normalize(diff2, None, 10, 255, cv2.NORM_MINMAX)
     bw = cv2.threshold(normed, threshold, 255, cv2.THRESH_BINARY)[1]
     edges = cv2.Canny(bw, 200, 120, apertureSize=3, L2gradient=True)
     
     lines = cv2.HoughLines(edges, 1, np.pi/360, dots_per_line,)
-    lines_coefs = np.empty((len(lines), 3))
+    lines_coefs = np.empty((len(lines), 4), dtype=int)
     coef = max(image.shape)
     for i, line in enumerate(lines):
         for rho, theta in line:
@@ -27,12 +28,31 @@ def find_lines(image, threshold, dots_per_line):
             x0 = a*rho
             y0 = b*rho
             x1 = int(x0 + coef*(-b))
-            y1 = int(y0 + coef*(a))
+            y1 = int(y0 + coef*a)
             x2 = int(x0 - coef*(-b))
-            y2 = int(y0 - coef*(a))
-            lines_coefs[i] = np.cross((x1, y1, 1), (x2, y2, 1))
+            y2 = int(y0 - coef*a)
+            lines_coefs[i] = (x1, y1, x2, y2)
     return lines_coefs
 
+
+def get_translation_matrix(lines_coefs, img_shape):
+    """
+    Find a translation to move the origin to the farthest point from any line
+    """
+    # create a white image with black lines
+    empty_img = np.ones(img_shape, dtype=np.uint8)
+    for x1, y1, x2, y2 in lines_coefs:
+        cv2.line(empty_img, (x1, y1), (x2, y2), (0), 2)
+        
+    # find to the farthest point from any line using distant map
+    dist = cv2.distanceTransform(empty_img, cv2.DIST_L1, 3)
+    max_dist_idxs = np.min(np.argwhere(dist == np.max(dist))[0])
+    # create a translation matrix
+    translation = np.array([
+        [1, 0, 0],
+        [0, 1, 0],
+        [-max_dist_idxs, -max_dist_idxs, 1]])
+    return translation
 
 
 if __name__ == "__main__":
@@ -43,19 +63,27 @@ if __name__ == "__main__":
     expected_angle_between_lines = int(sys.argv[-1])
     
     image = cv2.imread(path_to_image)
-    lines = find_lines(image, threshold, dots_per_line)
+    lines_coefs = find_lines(image, threshold, dots_per_line)
+    
+    lines = np.empty((len(lines_coefs), 3))
+    for i, (x1, y1, x2, y2) in enumerate(lines_coefs):
+        lines[i] = np.cross((x1, y1, 1), (x2, y2, 1))
+        
+    matrix = get_translation_matrix(lines_coefs, image.shape[:2])
+    lines_new = np.zeros(lines.shape)
+    for i, line in enumerate(lines):
+        lines_new[i] = np.matmul(matrix, line)
     
     # apply RANSAC to get codirectional lines
     print(f"found lines: {len(lines)}")  
-    line_group1, mask, v_point1 = get_codirectional_lines(lines, iters=1000, epsilon=0.005)
+    line_group1, mask, v_point1 = get_codirectional_lines(lines, lines_new, iters=1000, epsilon=0.01)
     print(f"lines in group 1: {len(line_group1)}")
-    line_group2, _, v_point2 = get_codirectional_lines(lines[~mask], iters=1000, epsilon=0.005)
+    line_group2, _, v_point2 = get_codirectional_lines(lines[~mask], lines_new[~mask], iters=1000, epsilon=0.01)
     print(f"lines in group 2: {len(line_group2)}")
-    
+
     # find vanishing points corespond to +Ox and +Oy axises
     hor_point, vert_point = find_axis_points(v_point1, v_point2)
-    # point order must be changed
-    homography = find_homography(vert_point, hor_point, expected_angle_between_lines, shift=True, im_shape=image.shape[:2])
+    homography = find_homography(hor_point, vert_point, expected_angle_between_lines, shift=True, im_shape=image.shape[:2])
 
     img_shape=(image.shape[1], image.shape[0])
     img_corners = np.array([[0, 0, 1], [0, img_shape[1], 1], [*img_shape, 1], [img_shape[0], 0, 1]])
@@ -112,4 +140,3 @@ if __name__ == "__main__":
     img_new_2 = cv2.warpPerspective(img_new_1, resmatrix, new_image_shape)
     cv2.imwrite('./images/results/rectified_cropped_img.png', img_new_2)
     print('The second result saved to images/results/rectified_cropped_img.png')
-    

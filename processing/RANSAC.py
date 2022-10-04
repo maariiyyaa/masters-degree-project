@@ -12,7 +12,7 @@ from numpy.random import choice
 from numpy.linalg import norm
         
     
-def get_codirectional_lines(lines, iters=500, epsilon=0.01):
+def get_codirectional_lines(lines, lines_translated=[], iters=500, epsilon=0.01):
     """
     Applying RANSAC method to find the best vanishing point and
     the intersecting in it lines.
@@ -27,20 +27,27 @@ def get_codirectional_lines(lines, iters=500, epsilon=0.01):
     """
     
     inliers_mask = array([False], dtype=bool)
-    for _ in range(iters):
+    lines_idxs = arange(len(lines))
+    if len(lines_translated)==0:
+        lines_translated = lines
+    for i in range(iters):
         #get 2 random lines
-        l1, l2 = lines[choice(arange(len(lines)), size=2, replace=False)]
+        choices = choice(lines_idxs, size=2, replace=False)
+        l1, l2 = lines_translated[choices]
         #find normilized cross points in the 2-sphere in 3-space 
         vanish_temp = cross(l1, l2)
-        cross_points = cross(l1, lines)
+        cross_points = cross(l1, lines_translated)
         vanish_temp_norm = vanish_temp / norm(vanish_temp)
         cross_points_norm = cross_points / norm(cross_points, axis=1)[:,None]
         #get distance between vanish_temp_norm and each of cross_points_norm and create a filter by `epsilon`
         mask_temp = arccos(npabs(inner(vanish_temp_norm, cross_points_norm))) < epsilon 
+        #add l1 to the mask
+        mask_temp[choices[0]] = True
         if len(mask_temp[mask_temp]) > len(inliers_mask[inliers_mask]):
             inliers_mask = mask_temp
-            vanish_point = vanish_temp
-    return lines[inliers_mask], inliers_mask, vanish_point
+            best_choice = choices
+            
+    return lines[inliers_mask], inliers_mask, cross(*lines[best_choice])
 
 
 def get_best_dist(rhos, axis_lenght, iters=1000, epsilon=5):
